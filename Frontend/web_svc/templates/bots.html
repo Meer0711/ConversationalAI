@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Admin Panel</title>
+        <link href="/static/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+        <link href="/static/css/dashboard.css" rel="stylesheet" type="text/css"/>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <script src="/static/js/jquery-3.7.0.min.js"></script>
+        <script src="/static/js/js.cookie.min.js"></script>
+        <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+
+        <script src="/static/js/custom.js"></script>
+        <script type="text/javascript">
+            $(document).ready(function() {
+                function clearCookies(){
+                    document.cookie.split(";").forEach(function(c) {
+                        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                    });
+                    location.reload();
+                }
+                {% if not user %}
+                    clearCookies();
+                {% endif %}
+
+                function getCookieValue(cookieName) {
+                    const cookies = document.cookie.split('; ');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.split('=');
+                        if (name === cookieName) {
+                            return decodeURIComponent(value);
+                        }
+                    }
+                    return null;
+                };
+
+                function setHeight() {
+                    var windowHeight = $(window).height(); // Get the window height
+                    var leftSide = windowHeight - 250;
+                    var rightSide = windowHeight - 250;
+                    $('#leftSide').height(leftSide);
+                    $('#leftSideBottom').height(50);
+                    $('#rightSide').height(rightSide+50);
+                }
+
+
+                setHeight();
+                $(window).resize(setHeight); // Adjust the height on window resize
+
+                $('#logout').click(function() {
+                    clearCookies();
+                });
+                $('.delete-bot').click(function() {
+                    let bot_id = $(this).data("bot-id")
+                    swal({
+                        title: "Are you sure?",
+                        text: "Once Bot id deleted, Can not be recovered.",
+                        icon: "warning",
+                        buttons: true,
+                        dangerMode: true,
+                    })
+                    .then((willDelete) => {
+                        if (willDelete) {
+                            $.ajax({
+                                beforeSend : function(jqXHR, settings) {
+                                    jqXHR.setRequestHeader("x-csrftoken", getCookieValue("csrftoken"));
+                                },
+                                url: "{% url 'bots' %}",
+                                type: "POST",
+                                data: {
+                                    "bot_id": bot_id,
+                                    "action": "delete"
+                                },
+                                success: function(response) {
+                                    location.reload();
+                                },
+                                error: function(XMLHttpRequest, textStatus, errorThrown) {
+                                    $("#id_processing").hide();
+                                    let errorResponse = XMLHttpRequest.responseJSON.detail;
+                                    swal(errorResponse, {icon: "error"});
+                                }
+                            });
+                        }
+                    });
+                });
+                $('.add-data-source').click(function(){
+                    let bot_id = $(this).data("bot-id");
+                    $("#id_bot_for_ds").val(bot_id)
+                    $('#addDatasourceModal').modal('show');
+                });
+            });
+        </script>
+        <style type="text/css">
+            .form-control {
+                border: 0.5px solid black;
+            }
+            .modal-overlay {
+                text-align: center;
+                position: fixed;
+                width: 100%;
+                height: 100%;
+                left: 0px;
+                top: 0px;
+                z-index: 100000;
+                background: rgba(0, 0, 0, 0.5);
+                display: none;
+            }
+            .modal-overlay img {
+                position: relative;
+                top: 200px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="modal-overlay" id="id_processing">
+            <img src="/static/images/loader.svg"/>
+        </div>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3" style="padding-left: 0px; padding-right: 0px;">
+                    <nav class="navbar navbar-light bg-light" style="box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.17); height: 70px; border-radius: 10px; border-bottom-left-radius: 0px; text-align: center;">
+                        <div class="container-fluid">
+                            <a class="navbar-brand mx-auto" href="/">
+                                <h3 style="font-weight: bold">Admin Panel <br> <h6>{{ user.account_name }}</h6></h3>
+                            </a>
+                        </div>
+                    </nav>
+                </div>
+                <div class="col-md-9" style="padding-left: 0px; padding-right: 0px;">
+                    <nav class="navbar navbar-light bg-light" style="box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.17); height: 70px; border-radius: 10px; border-bottom-right-radius:0px; margin-left: 1px;">
+                        <div class="container-fluid">
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addBotModal">Add Bot</button>
+                            <p class="navbar-nav ms-auto">
+                               Hi, {{user.email}}
+                            </p>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+            <div class="row" >
+                <div class="col-md-3"  style="padding-right: 0px; background-color: #fff; border-right: 1px solid #e9ebec ;padding-left: 0px; border-radius: 10px; border-top-left-radius: 0px; border-bottom-right-radius: 0px;">
+                    <div class="row" style="margin-right: 0px">
+                        <div class="col-md-12" id="leftSide" style="padding-right: 0px; overflow-y: auto">
+
+                            <div class="list-group list-group-flush" style="border: 1px solid #e9ebec; ">
+
+                                <a class="list-group-item list-group-item-action" href="{% url 'users' %}" style="cursor: pointer; height: 45px;">
+                                    <i class="fa fa-users" aria-hidden="true"></i> &nbsp;&nbsp;Users
+                                </a>
+                                <a class="list-group-item list-group-item-action active" href="{% url 'bots' %}" style="cursor: pointer; height: 45px;">
+                                    <i class="fa fa-users" aria-hidden="true"></i> &nbsp;&nbsp;Bots
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" id="leftSideBottom" style="margin-right: 0px; margin-left: 0px">
+                        <div class="col-md-12">
+                            <div class="list-group" >
+                                <a class="list-group-item list-group-item-action" id="logout" style="cursor: pointer; height: 40px; border-radius: 10px">
+                                    <i class="fa fa-power-off" aria-hidden="true"></i>&nbsp;&nbsp;Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-9"  style="padding-right: 0px;">
+                    <div class="row"  style="margin-right: 0px">
+                        <div class="col-md-12" id="rightSide" style="background: #f4f4f4; overflow-y: auto; border-radius: 10px;
+                        border-top-right-radius:0px; border-bottom-right-radius:0px; border-bottom-left-radius:0px; ">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">#</th>
+                                        <th scope="col">Bot Name</th>
+                                        <th scope="col">Data Source</th>
+                                        <th scope="col">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for bot in bots %}
+                                        <tr>
+                                            <th scope="row">{{ forloop.counter }}</th>
+                                            <td>{{ bot.name }}</td>
+                                            <td>
+                                                <i class="fa fa-eye text-info" aria-hidden="true" data-bs-toggle="modal" data-bs-target="#datasourceModal{{bot.id}}" style="cursor: pointer;"></i>
+                                                &nbsp;&nbsp;&nbsp;<i class="fa fa-plus-circle text-info add-data-source" data-bot-id="{{bot.id}}" aria-hidden="true" style="cursor: pointer;"></i>
+
+                                            </td>
+                                            <td>
+                                            <i class="fa fa-trash text-danger delete-bot" data-bot-id="{{ bot.id }}" aria-hidden="true" style="cursor: pointer;"></i>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="addBotModal" tabindex="-1" aria-labelledby="addBotModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addBotModalLabel">Add Bot</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form enctype="multipart/form-data" method="post" action="{% url 'bots' %}" id="botForm" data-reload="true" onsubmit="return submitForm($(this))">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="createBot">
+
+                        <div class="modal-body">
+                            <input type="text" name="name" class="form-control input-sm" placeholder="Enter bot name" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-success btn-sm">Save changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="addDatasourceModal" tabindex="-1" aria-labelledby="addDatasourceModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addDatasourceModalLabel">Add Datasource</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form enctype="multipart/form-data" method="post" action="{% url 'bots' %}" id="dataSourceForm" data-reload="true" onsubmit="return submitForm($(this))">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="createDataSource">
+                        <input type="hidden" name="bot_id" id="id_bot_for_ds" value="">
+
+                        <div class="modal-body">
+                            <input type="file" id="id_file" name="file" class="form-control input-sm" autocomplete="off" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-success btn-sm">Save changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% for bot in bots %}
+            <div class="modal fade" id="datasourceModal{{bot.id}}" tabindex="-1" role="dialog" aria-labelledby="datasourceModal{{bot.id}}Label" aria-hidden="true">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="datasourceModal{{bot.id}}Label">Data Sources</h5>
+                        </div>
+                        <div class="modal-body">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Filename</th>
+                                        <th>Created At</th>
+                                        <th>Is Index Created</th>
+                                        <th>Download</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ds in bot.data_sources %}
+                                        <tr>
+                                            <th scope="row">{{ forloop.counter }}</th>
+                                            <td>{{ ds.filename }}</td>
+                                            <td>{{ ds.uploaded_at }}</td>
+                                            <td>
+                                                {{ds.is_index_created}}
+                                            </td>
+                                            <td><a href="{{ ds.download_url }}" target="_blank"><i class="fa fa-download" aria-hidden="true"></i></a></td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <th colspan="6" class="fw-light text-muted" style="text-align: center;">No datasource uploaded yet</th>
+                                        </tr>
+                                    {% endfor %}
+                                    
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </body>
+</html>

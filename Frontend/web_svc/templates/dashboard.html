@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Conversational AI</title>
+        <link href="/static/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+        <link href="/static/css/dashboard.css" rel="stylesheet" type="text/css"/>
+
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <script src="/static/js/jquery-3.7.0.min.js"></script>
+        <script src="/static/js/js.cookie.min.js"></script>
+        <script type="text/javascript">
+            $(document).ready(function() {
+                function clearCookies(){
+                    document.cookie.split(";").forEach(function(c) {
+                        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                    });
+                    location.reload();
+                }
+                {% if not id %}
+                    clearCookies();
+                {% endif %}
+                function setHeight() {
+                    var windowHeight = $(window).height(); // Get the window height
+                    console.log(windowHeight)
+                    var leftSide = windowHeight - 250;
+                    var rightSide = windowHeight - 250;
+                    $('#leftSide').height(leftSide);
+                    $('#leftSideBottom').height(50);
+                    $('#rightSide').height(rightSide + 50);
+                }
+                setHeight();
+                $(window).resize(setHeight); // Adjust the height on window resize
+                $('#sendMessage').click(function() {
+                    var message = $('#messageInput').val(); // Get the input value
+                    if (message) {
+                        $('#messages').append('<div class="msg">' + message + '</div><br><br>');
+                        $('#messageInput').val('');
+                        $('#rightSide').scrollTop($('#rightSide')[0].scrollHeight);
+                    }
+                });
+                $('#messageInput').keypress(function(event) {
+                    if (event.which == 13) {  // Check if the key pressed is 'Enter'
+                        event.preventDefault();  // Prevent the default action to stop form submission
+                        $('#sendMessage').click();  // Trigger the button click
+                    }
+                });
+
+                $('#logout').click(function() {
+                    clearCookies();
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3" style="padding-left: 0px; padding-right: 0px;">
+                    <nav class="navbar navbar-light bg-light" style="box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.17); height: 70px; border-radius: 10px; border-bottom-left-radius: 0px">
+                        <div class="container-fluid">
+                            <a class="navbar-brand mx-auto" href="/">
+                                <h3 style="font-family: cursive; font-weight: bold">{{account_name}}</h3>
+                            </a>
+                        </div>
+                    </nav>
+                </div>
+                <div class="col-md-9" style="padding-left: 0px; padding-right: 0px;">
+                    <nav class="navbar navbar-light bg-light" style="box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.17); height: 70px; border-radius: 10px; border-bottom-right-radius:0px; margin-left: 1px;">
+                        <div class="container-fluid">
+                           <p class="navbar-nav ms-auto">
+                               Hi, {{email}}
+                            </p>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+            <div class="row" >
+                <div class="col-md-3"  style="padding-right: 0px; background-color: #fff; border-right: 1px solid #e9ebec ;padding-left: 0px; border-radius: 10px; border-top-left-radius: 0px; border-bottom-right-radius: 0px;">
+                    <div class="row" style="margin-right: 0px">
+                        <div class="col-md-12" id="leftSide" style="padding-right: 0px; overflow-y: auto">
+                            <div class="d-flex position-relative">
+                                <input class="form-control" type="search" placeholder="Search Bot ..." aria-label="Search" style="padding-right: 30px; border: 1px solid #e9ebec; border-bottom: 0px;">
+                                <i class="fa fa-search position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;"></i>
+                            </div>
+                            <div class="list-group list-group-flush" style="border: 1px solid #e9ebec; ">
+                                {% for bot in bots %}
+                                    <a class="list-group-item list-group-item-action" href="{% url 'bot_messages' bot.id %}" style="cursor: pointer; height: 45px;">
+                                        <img src="/static/images/robot.svg"> &nbsp;&nbsp;{{ bot.name }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" id="leftSideBottom" style="margin-right: 0px; margin-left: 0px">
+                        <div class="col-md-12">
+                            <div class="list-group" >
+                                <a class="list-group-item list-group-item-action" id="logout" style="cursor: pointer; height: 40px; border-radius: 10px">
+                                    <i class="fa fa-power-off" aria-hidden="true"></i>&nbsp;&nbsp;Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-9"  style="padding-right: 0px;">
+                    <div class="row"  style="margin-right: 0px">
+                        <div class="col-md-12" id="rightSide" style="background: #f4f4f4; overflow-y: auto; border-radius: 10px;
+                        border-top-right-radius:0px; border-bottom-right-radius:0px; border-bottom-left-radius:0px">
+                            <div class="row">
+                                <div class="col-md-6" style="background: #f4f4f4">
+                                    <p style="margin-top: 50px; text-align: center; font-size: 26px; line-height: 1.99; font-family: monospace; ">
+                                        Conversational AI chatbots infused with new generative AI capabilities
+                                    </p>
+                                </div>
+                                <div class="col-md-6" style="background-image: url('/static/images/leadspace.png'); background-size: cover; margin-top: 20px; height: 300px"></div>
+                            </div>
+                            <div class="row justify-content-md-center">
+                                <div class="col-md-6" >
+                                    <p class="badge bg-info fs-19 fw-medium" style="font-family: monospace;">Select Bot to start the conversation</p><br>
+                                    {% if is_admin %}
+                                        <p class="fs-3" style="text-align: center">OR</p>
+                                        <a class="fs-3 text-info" href="/bots" style="display: block; text-align: center"><i class="fa fa-arrow-circle-right" aria-hidden="true"></i> Create Bots</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row">
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

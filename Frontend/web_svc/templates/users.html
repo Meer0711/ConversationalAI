@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Admin Panel</title>
+        <link href="/static/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+        <link href="/static/css/dashboard.css" rel="stylesheet" type="text/css"/>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <script src="/static/js/jquery-3.7.0.min.js"></script>
+        <script src="/static/js/js.cookie.min.js"></script>
+        <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+
+        <script src="/static/js/custom.js"></script>
+        <script type="text/javascript">
+            $(document).ready(function() {
+                function clearCookies(){
+                    document.cookie.split(";").forEach(function(c) {
+                        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                    });
+                    location.reload();
+                }
+                // {% if not user %}
+                //     clearCookies();
+                // {% endif %}
+                
+
+                function getCookieValue(cookieName) {
+                    const cookies = document.cookie.split('; ');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.split('=');
+                        if (name === cookieName) {
+                            return decodeURIComponent(value);
+                        }
+                    }
+                    return null;
+                };
+                
+                function setHeight() {
+                    var windowHeight = $(window).height(); // Get the window height
+                    var leftSide = windowHeight - 250;
+                    var rightSide = windowHeight - 250;
+                    $('#leftSide').height(leftSide);
+                    $('#leftSideBottom').height(50);
+                    $('#rightSide').height(rightSide+50);
+                }
+                
+                
+                setHeight();
+                $(window).resize(setHeight); // Adjust the height on window resize
+                
+                $('#logout').click(function() {
+                    clearCookies();
+                });
+                $('.delete-user').click(function() {
+                    let user_id = $(this).data("user-id")
+                    swal({
+                        title: "Are you sure?",
+                        text: "Once user id deleted, Can not be recovered.",
+                        icon: "warning",
+                        buttons: true,
+                        dangerMode: true,
+                    })
+                    .then((willDelete) => {
+                        if (willDelete) {
+                            $.ajax({
+                                beforeSend : function(jqXHR, settings) {
+                                    jqXHR.setRequestHeader("x-csrftoken", getCookieValue("csrftoken"));
+                                },
+                                url: "{% url 'users' %}",
+                                type: "POST",
+                                data: {
+                                    "user_id": user_id,
+                                    "action": "delete"
+                                },
+                                success: function(response) {
+                                    location.reload();
+                                },
+                                error: function(XMLHttpRequest, textStatus, errorThrown) {
+                                    $("#id_processing").hide();
+                                    let errorResponse = XMLHttpRequest.responseJSON.detail;
+                                    swal(errorResponse, {icon: "error"});
+                                }
+                            });
+                        }
+                    });
+                });
+            });            
+        </script>
+        <style type="text/css">
+            .form-control {
+                border: 0.5px solid black;
+            }
+            .modal-overlay {
+                text-align: center;
+                position: fixed;
+                width: 100%;
+                height: 100%;
+                left: 0px;
+                top: 0px;
+                z-index: 100000;
+                background: rgba(0, 0, 0, 0.5);
+                display: none;
+            }
+            .modal-overlay img {
+                position: relative;
+                top: 200px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="modal-overlay" id="id_processing">
+            <img src="/static/images/loader.svg"/>
+        </div>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3" style="padding-left: 0px; padding-right: 0px;">
+                    <nav class="navbar navbar-light bg-light" style="box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.17); height: 70px; border-radius: 10px; border-bottom-left-radius: 0px; text-align: center;">
+                        <div class="container-fluid">
+                            <a class="navbar-brand mx-auto" href="/">
+                                <h3 style="font-weight: bold">Admin Panel <br> <h6>{{ user.account_name }}</h6></h3>
+                            </a>
+                        </div>
+                    </nav>
+                </div>
+                <div class="col-md-9" style="padding-left: 0px; padding-right: 0px;">
+                    <nav class="navbar navbar-light bg-light" style="box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.17); height: 70px; border-radius: 10px; border-bottom-right-radius:0px; margin-left: 1px;">
+                        <div class="container-fluid">
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addUserModal">Add User</button>
+                            <p class="navbar-nav ms-auto">
+                               Hi, {{user.email}}
+                            </p>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+            <div class="row" >
+                <div class="col-md-3"  style="padding-right: 0px; background-color: #fff; border-right: 1px solid #e9ebec ;padding-left: 0px; border-radius: 10px; border-top-left-radius: 0px; border-bottom-right-radius: 0px;">
+                    <div class="row" style="margin-right: 0px">
+                        <div class="col-md-12" id="leftSide" style="padding-right: 0px; overflow-y: auto">
+                        
+                            <div class="list-group list-group-flush" style="border: 1px solid #e9ebec; ">
+                                
+                                <a class="list-group-item list-group-item-action active" href="{% url 'users' %}" style="cursor: pointer; height: 45px;">
+                                    <i class="fa fa-users" aria-hidden="true"></i> &nbsp;&nbsp;Users
+                                </a>
+                                <a class="list-group-item list-group-item-action" href="{% url 'bots' %}" style="cursor: pointer; height: 45px;">
+                                    <i class="fa fa-users" aria-hidden="true"></i> &nbsp;&nbsp;Bots
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" id="leftSideBottom" style="margin-right: 0px; margin-left: 0px">
+                        <div class="col-md-12">
+                            <div class="list-group" >
+                                <a class="list-group-item list-group-item-action" id="logout" style="cursor: pointer; height: 40px; border-radius: 10px">
+                                    <i class="fa fa-power-off" aria-hidden="true"></i>&nbsp;&nbsp;Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-9"  style="padding-right: 0px;">
+                    <div class="row"  style="margin-right: 0px">
+                        <div class="col-md-12" id="rightSide" style="background: #f4f4f4; overflow-y: auto; border-radius: 10px;
+                        border-top-right-radius:0px; border-bottom-right-radius:0px; border-bottom-left-radius:0px; ">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">#</th>
+                                        <th scope="col">Email</th>
+                                        <th scope="col">Bot's Access</th>
+                                        <th scope="col">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                    <tr>
+                                        <th scope="row">{{ forloop.counter }}</th>
+                                        <td>{{ user.email }} {% if user.is_admin %}<span class="badge bg-success">Admin</span>{% endif %}</td>
+                                        <td>
+                                            {% for bot in user.bots %}
+                                                <span class="badge bg-success">{{bot.name}}</span>
+                                            {% empty %}
+                                                <span class="badge bg-warning">No bot assigned yet</span>
+                                            {% endfor %}
+                                        </td>
+                                        <td>
+                                            <i class="fa fa-pencil text-secondary" data-bs-toggle="modal" data-bs-target="#updateUserBotModal{{user.id}}" aria-hidden="true" style="cursor: pointer;"></i>
+                                            {% if not user.is_admin %}
+                                                &nbsp;&nbsp;&nbsp;<i class="fa fa-trash text-danger delete-user" data-user-id="{{ user.id }}" aria-hidden="true" style="cursor: pointer;"></i>
+                                            {% endif %}
+                                            
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addUserModalLabel">Add User</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form enctype="multipart/form-data" method="post" action="{% url 'users' %}" id="userForm" data-reload="true" onsubmit="return submitForm($(this))">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="create">
+
+                        <div class="modal-body">
+                            <input type="email" name="email" class="form-control input-sm" placeholder="Enter user's email" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-success btn-sm">Save changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% for user in users %}
+            <div class="modal fade" id="updateUserBotModal{{user.id}}" tabindex="-1" aria-labelledby="updateUserBotModal{{user.id}}Label" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="updateUserBotModal{{user.id}}Label">Update User's Bot</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form enctype="multipart/form-data" method="post" action="{% url 'users' %}" id="updateUserBotForm{{user.id}}" data-reload="true" onsubmit="return submitForm($(this))">
+                            {% csrf_token %}
+                            <div class="modal-body">
+                                <input type="hidden" name="action" value="update">
+                                <input type="hidden" name="user_id"  value="{{ user.id }}">
+                                {% for bot in bots %}
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" name="bot_ids" value="{{ bot.id }}" {% for bot2 in user.bots %}{% if bot2.id == bot.id %} checked {% endif %}{% endfor %}>
+                                        <label class="form-check-label">
+                                            {{ bot.name }}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-success btn-sm">Save changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </body>
+</html>

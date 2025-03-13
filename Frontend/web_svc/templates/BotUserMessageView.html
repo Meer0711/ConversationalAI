@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Conversational AI</title>
+        <link href="/static/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+        <link href="/static/css/dashboard.css" rel="stylesheet" type="text/css"/>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+        <script src="/static/js/jquery-3.7.0.min.js"></script>
+        <script src="/static/js/js.cookie.min.js"></script>
+        <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+
+        <script type="text/javascript">
+            function showTempMessageToLeft() {
+                var html = '<div class="message-left" id="temp-message"><p class="message-content-left">Fetching<span class="typing-dots"></span></p></div><br><br>'
+                $('#messages').append(html);
+                $('#messageInput').val('');
+                $('#rightSide').scrollTop($('#rightSide')[0].scrollHeight);
+            }
+            $(document).ready(function() {
+                function clearCookies(){
+                    document.cookie.split(";").forEach(function(c) {
+                        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                    });
+                    location.reload();
+                }
+                // {% if not user %}
+                //     clearCookies();
+                // {% endif %}
+
+                function getCookieValue(cookieName) {
+                    const cookies = document.cookie.split('; ');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.split('=');
+                        if (name === cookieName) {
+                            return decodeURIComponent(value);
+                        }
+                    }
+                    return null;
+                };
+
+                function formatDateTime(timestamp) {
+                    const date = new Date(parseFloat(timestamp)); // Convert UNIX timestamp to milliseconds
+                    const dayOptions = { weekday: 'short' }; // Gives abbreviations like 'Mon', 'Tue', etc.
+                    const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+
+                    return date.toLocaleDateString('en-US', dayOptions) + ', ' + date.toLocaleTimeString('en-US', timeOptions);
+                }
+                
+                function setHeight() {
+                    var windowHeight = $(window).height(); // Get the window height
+                    var leftSide = windowHeight - 250;
+                    var rightSide = windowHeight - 250;
+                    $('#leftSide').height(leftSide);
+                    $('#leftSideBottom').height(50);
+                    $('#rightSide').height(rightSide);
+                    $('#rightSideBottom').height(50);
+                }
+                function appendMessageToRight(message, time) {
+                    var html = '<div class="message-right"><p class="message-content-right">'+ message +'</p><div class="message-timestamp-right">'+ time +'</div></div>'
+                    $('#messages').append(html);
+                    $('#messageInput').val('');
+                    $('#rightSide').scrollTop($('#rightSide')[0].scrollHeight);
+                }
+                function appendMessageToLeft(message, time) {
+                    var html = '<div class="message-left"><p class="message-content-left">'+ message +'</p><div class="message-timestamp-left">'+ time +'</div></div><br><br>'
+                    $('#messages').append(html);
+                    $('#messageInput').val('');
+                    $('#rightSide').scrollTop($('#rightSide')[0].scrollHeight);
+                }
+                
+                setHeight();
+                $(window).resize(setHeight); // Adjust the height on window resize
+                $('#sendMessage').click(function() {
+                    var message = $('#messageInput').val(); // Get the input value
+                    if (message) {
+                        var currentDate = new Date();
+                        var timestamp = currentDate.getTime();
+                        appendMessageToRight(message, formatDateTime(timestamp));
+                        showTempMessageToLeft();
+                        $.ajax({
+                            beforeSend : function(jqXHR, settings) {
+                                jqXHR.setRequestHeader("x-csrftoken", getCookieValue("csrftoken"));
+                            },
+                            url: "{% url 'send_message' %}",
+                            type: 'post',
+                            data: {
+                                "bot_id": {{ bot_id }},
+                                "message": message
+                            },
+                            success: function(response) {
+                                var pollInterval = setInterval(function() {
+                                    $.ajax({
+                                        beforeSend : function(jqXHR, settings) {
+                                            jqXHR.setRequestHeader("x-csrftoken", getCookieValue("csrftoken"));
+                                        },
+                                        url: "{% url 'get_pending_message' %}", // URL to the polling API
+                                        type: 'get',
+                                        data: {
+                                            "bot_id": {{bot_id}},
+                                            "message_id": response.data.id
+                                        },
+                                        success: function(pollResponse) {
+                                            if (pollResponse.message != "WaitingForBotResponse") {
+                                                $("#temp-message").remove();
+                                                clearInterval(pollInterval); // Stop polling
+                                                appendMessageToLeft(pollResponse.message, formatDateTime(pollResponse.timestamp));
+                                            }
+                                        },
+                                        error: function(xhr, status, error) {
+                                            $("#temp-message").remove();
+                                            clearInterval(pollInterval);
+                                            swal(xhr.responseJSON.detail, {icon: "error"});
+                                        }
+                                    });
+                                }, 1000);
+                            },
+                            error: function(xhr, status, error) {
+                                $("#temp-message").remove();
+                                swal(xhr.responseJSON.detail, {icon: "error"});
+                                return false
+                            }
+                        });
+                        return false
+                    }
+                });
+                $('#messageInput').keypress(function(event) {
+                    if (event.which == 13) {  
+                        event.preventDefault();  
+                        $('#sendMessage').click();
+                    }
+                });
+
+                $('#logout').click(function() {
+                    clearCookies();
+                });
+                {% for message in messages %}
+                    if("{{message.class}}" === "rightAlignment"){
+                        appendMessageToRight('{{message.message|escapejs}}', formatDateTime("{{ message.timestamp }}"))
+                    }else{
+                        appendMessageToLeft('{{message.message|escapejs}}', formatDateTime("{{ message.timestamp }}"))
+                    }
+                {% endfor %}
+            });
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3" style="padding-left: 0px; padding-right: 0px;">
+                    <nav class="navbar navbar-light bg-light" style="box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.17); height: 70px; border-radius: 10px; border-bottom-left-radius: 0px">
+                        <div class="container-fluid">
+                            <a class="navbar-brand mx-auto" href="/">
+                                <h3 style="font-family: cursive; font-weight: bold">{{user.account_name}}</h3>
+                            </a>
+                        </div>
+                    </nav>
+                </div>
+                <div class="col-md-9" style="padding-left: 0px; padding-right: 0px;">
+                    <nav class="navbar navbar-light bg-light" style="box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.17); height: 70px; border-radius: 10px; border-bottom-right-radius:0px; margin-left: 1px;">
+                        <div class="container-fluid">
+                            <p class="ms-left">
+                               <span class="fs-15 fw-bold">{{bot_detail.name}}</span> <i class="fa fa-circle text-success fs-10" aria-hidden="true"></i>
+                            </p>
+                            <p class="navbar-nav ms-auto">
+                                <span data-bs-toggle="modal" data-bs-target="#datasourceModal" style="cursor: pointer;">View Data source</span>
+                            </p> 
+                            <p class="navbar-nav ms-auto">
+                               Hi, {{user.email}}
+                            </p>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+            <div class="row" >
+                <div class="col-md-3"  style="padding-right: 0px; background-color: #fff; border-right: 1px solid #e9ebec ;padding-left: 0px; border-radius: 10px; border-top-left-radius: 0px; border-bottom-right-radius: 0px;">
+                    <div class="row" style="margin-right: 0px">
+                        <div class="col-md-12" id="leftSide" style="padding-right: 0px; overflow-y: auto">
+                            <div class="d-flex position-relative">
+                                <input class="form-control" type="search" placeholder="Search Bot ..." aria-label="Search" style="padding-right: 30px; border: 1px solid #e9ebec; border-bottom: 0px;">
+                                <i class="fa fa-search position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;"></i>
+                            </div>
+
+                            <div class="list-group list-group-flush" style="border: 1px solid #e9ebec;">
+                                {% for bot in user.bots %}
+                                    <a class="list-group-item list-group-item-action {% if bot.id == bot_id %}active{% endif %}" href="{% url 'bot_messages' bot.id %}" style="cursor: pointer; height: 45px;">
+                                        <img src="/static/images/robot.svg" > &nbsp;&nbsp;{{ bot.name }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" id="leftSideBottom" style="margin-right: 0px; margin-left: 0px">
+                        <div class="col-md-12">
+                            <div class="list-group" >
+                                <a class="list-group-item list-group-item-action" id="logout" style="cursor: pointer; height: 40px; border-radius: 10px">
+                                    <i class="fa fa-power-off" aria-hidden="true"></i>&nbsp;&nbsp;Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-9"  style="padding-right: 0px;">
+                    <div class="row"  style="margin-right: 0px">
+                        <div class="col-md-12" id="rightSide" style="background-image: url('/static/images/2.jpg');overflow-y: auto; border-radius: 10px;
+                        border-top-right-radius:0px; border-bottom-right-radius:0px; border-bottom-left-radius:0px; ">
+                            <div id="messages" style="margin-top: 1rem; margin-bottom: 1rem; overflow: hidden;">
+                            
+
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" id="rightSideBottom" style="background: #fff; margin-right: 0px; border-radius: 10px;
+                    border-top-right-radius:0px; border-top-left-radius:0px; border-bottom-left-radius:0px;">
+                        <div class="fieldInput">
+                            <input class="form-input" id="messageInput" type="text" 
+                            placeholder="Ask anything related to {{ bot_detail.name }}...">
+                            <button type="submit" class="form-submit" id="sendMessage">Enter </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="datasourceModal" tabindex="-1" role="dialog" aria-labelledby="datasourceModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="datasourceModalLabel">Data Sources</h5>
+                    </div>
+                    <div class="modal-body">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Filename</th>
+                                    <th>Created At</th>
+                                    <th>Is Index Created</th>
+                                    <th>Download</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ds in bot_detail.data_sources %}
+                                    <tr>
+                                        <th scope="row">{{ forloop.counter }}</th>
+                                        <td>{{ ds.filename }}</td>
+                                        <td>{{ ds.uploaded_at}}</td>
+                                        <td>
+                                            {{ds.is_index_created}}
+                                        </td>
+                                        <td><a href="{{ ds.download_url }}" target="_blank"><i class="fa fa-download" aria-hidden="true"></i></a></td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <th colspan="6" class="fw-light text-muted" style="text-align: center;">No datasource uploaded yet</th>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

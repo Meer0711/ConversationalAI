@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Login</title>
+        <link href="/static/css/login.css" rel="stylesheet" type="text/css"/>
+        <script src="/static/js/jquery-3.7.0.min.js"></script>
+        <script src="/static/js/js.cookie.min.js"></script>
+
+        <script type="text/javascript">
+            $(document).ready(function() {
+                $("#signUp").click(function() {
+                    $("title").text("Sign Up");
+                    $("#loginForm").css('z-index', 1).slideUp("slow");
+                    $("#signUpForm").css('z-index', 2).slideDown("slow");
+                });
+                $("#signIn").click(function() {
+                    $("title").text("Sign In");
+                    $("#signUpForm").css('z-index', 1).slideUp("slow");
+                    $("#loginForm").css('z-index', 2).slideDown("slow");
+                });
+            });
+            function submitForm($this) {
+                $("#id_processing").show();
+                let formId = $this.attr("id");
+                let reload = $this.data("reload");
+                var formData = new FormData($("#"+formId)[0]);
+                $.ajax({
+                    url: $this.attr("action"),
+                    type: $this.attr("method"),
+                    processData: false,
+                    contentType: false,
+                    data: formData,
+                    success: function(response) {
+                        Cookies.set("api_key", response.api_key);
+                        Cookies.set("user_id", response.user_id);
+                        location.reload();
+                    },
+                    error: function(XMLHttpRequest, textStatus, errorThrown) {
+                        let errorResponse = XMLHttpRequest.responseJSON;
+                        $("#error").text(errorResponse.detail);
+                        $('#error').show();
+                        $('#error').delay(5000).hide(0);
+                    }
+                });
+                return false;
+            };
+        </script>
+    </head>
+    <body>
+        <div class="login-container" >
+            <form class="login-form" method="post" action="{% url 'login_or_signup' %}" id="loginForm"
+                      onsubmit="return submitForm($(this))">
+                <h1>Conversational AI</h1>
+                <p>Please log in to your account</p>
+                {% csrf_token %}
+
+                <input type="hidden" id="id_login_action" name="action" value="sign_in">
+                <div class="input-group">
+                    <input type="text" id="id_login_email" name="email" placeholder="Email" required>
+                </div>
+                <!-- <div class="input-group">
+                    <input type="password" id="id_login_password" name="password" placeholder="Password" required>
+                </div> -->
+                <button type="submit">Login</button>
+                <div class="bottom-text">
+                    <p>Don't have an account? <a id="signUp" style="cursor: pointer">Sign Up</a></p>
+                </div>
+            </form>
+            <form class="login-form" method="post" action="{% url 'login_or_signup' %}" id="signUpForm"
+                      onsubmit="return submitForm($(this))" style="display: none">
+                <h1>Conversational AI</h1>
+                <input type="hidden" id="id_signup_action" name="action" value="sign_up">
+                <p>Register your account </p>
+                {% csrf_token %}
+                <div class="input-group">
+                    <input type="text" id="id_signup_account" name="account_name" placeholder="Tenant Name" required>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="id_signup_email" name="email" placeholder="Email" required>
+                </div>
+                <!-- <div class="input-group">
+                    <input type="password" id="id_signup_password" name="password" placeholder="Password" required>
+                </div> -->
+                <button type="submit">Sign Up</button>
+                <div class="bottom-text">
+                    <p>Already have an account? <a id="signIn" style="cursor: pointer">Sign In</a></p>
+                </div>
+            </form>
+            <p id="error" style="color: #d94343; display: none"></p>
+        </div>
+    </body>
+</html>
